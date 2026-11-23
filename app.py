@@ -17,6 +17,7 @@ from __future__ import annotations
 import streamlit as st
 
 import commun
+import donnees
 import ecran_analyses
 import ecran_livrables
 import ecran_methodologie
@@ -24,6 +25,8 @@ import ecran_questionnaire
 import ecran_recommandation
 import ecran_tableau
 from commun import tr
+
+VERSION = "2026-11-23 b · univers sourcé, IA auto"   # à changer à chaque livraison : permet de vérifier la version en ligne
 
 st.set_page_config(page_title="Robo-advisor patrimonial", page_icon="◆", layout="wide", initial_sidebar_state="expanded")
 commun.initialiser()
@@ -106,6 +109,8 @@ with st.sidebar:
     c2.button("EN", key="lang_en", on_click=commun.changer_langue, args=("en",))
     import calcul_marches
     st.caption(("🧪 " if calcul_marches.mode() == "demo" else "💾 ") + tr("Cours : ", "Prices: ") + calcul_marches.nom_mode(commun.L()))
+    _u = donnees.univers()
+    st.caption(f"Version {VERSION} · " + tr(f"{int((_u == 'TODO').sum().sum())} donnée(s) TODO", f"{int((_u == 'TODO').sum().sum())} TODO field(s)"))
     st.caption(tr("Projet pédagogique de M2 Banque-Finance : outil simulé, pas un conseil en investissement réel.",
                   "Master's student project: simulated tool, not real investment advice."))
 

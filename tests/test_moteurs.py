@@ -227,3 +227,27 @@ def test_fiscalite(client_type):
     assert sum(r["meilleur"] for r in res) == 1
     cto = next(r for r in res if r["enveloppe"] == "CTO")
     assert abs(cto["taux"] - 0.314) < 1e-9
+
+
+def test_classement_etf_coherent_partout():
+    """Pour chaque poche, enveloppe et préférence : aucune donnée inconnue, et un motif exact (pas « frais plus élevés » à frais égaux)."""
+    import calcul_portefeuille as cpf, donnees
+    u = donnees.univers()
+    for sc in u[u["type"] == "fonds"]["sous_classe"].unique():
+        for env in ("CTO", "PEA", "assurance-vie"):
+            for durable in (False, True):
+                res = cpf.classer_etf(sc, durable, env)
+                for k, c in enumerate(res):
+                    assert all(v is not None for v in c["criteres"].values()), (sc, c["nom"])
+                    assert c["motif"]
+                    if k and c["motif"] == "frais plus élevés":
+                        assert c["ter"] > res[0]["ter"], (sc, c["nom"])
+
+
+def test_sans_preference_durable_le_pea_prime_sur_la_version():
+    """Client sans préférence durable en PEA : l'ETF émergent éligible au PEA (version ESG) passe devant les versions non éligibles."""
+    import calcul_portefeuille as cpf
+    res = cpf.classer_etf("emergents", False, "PEA")
+    assert res[0]["pea"] and res[0]["version"] == "durable"
+    res = cpf.classer_etf("emergents", False, "CTO")
+    assert res[0]["version"] == "standard"

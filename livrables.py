@@ -467,7 +467,25 @@ def excel(ctx: dict) -> tuple[bytes, str]:
 # E-mail au client rédigé par IA (Gemini), avec garde-fou : aucun chiffre absent des données fournies
 # ====================================================================================================
 # Essayés dans l'ordre ; les noms changent souvent : GEMINI_MODEL (secrets) force un modèle précis vu dans Google AI Studio.
-MODELES_GEMINI = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+# Liste de secours seulement : la liste réelle est lue sur la clé (Google retire régulièrement des modèles → erreurs 404)
+MODELES_GEMINI = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite"]
+_EXCLUS = ("tts", "live", "image", "audio", "transcribe", "translate", "embedding", "omni", "veo", "imagen", "aqa", "thinking", "robotics")
+
+
+def modeles_disponibles(client) -> list[str]:
+    """Modèles texte « flash » réellement ouverts à cette clé, du plus récent au plus ancien (lite d'abord : quota gratuit plus large)."""
+    try:
+        noms = []
+        for m in client.models.list():
+            nom = (m.name or "").split("/")[-1]
+            actions = getattr(m, "supported_actions", None) or getattr(m, "supported_generation_methods", None) or []
+            if "flash" in nom and not any(x in nom for x in _EXCLUS) and (not actions or "generateContent" in actions):
+                noms.append(nom)
+        version = lambda n: tuple(int(x) for x in re.findall(r"\d+", n.split("-")[1])) if len(n.split("-")) > 1 and re.match(r"\d", n.split("-")[1]) else (0,)
+        noms.sort(key=lambda n: (-sum(v * 100 ** (2 - i) for i, v in enumerate(version(n)[:3])), "preview" in n, "lite" not in n))
+        return noms[:6] or MODELES_GEMINI
+    except Exception:
+        return MODELES_GEMINI
 derniere_source = "aucune"
 
 
@@ -572,7 +590,7 @@ def email_client(ctx: dict) -> tuple[str, str, str]:
         from google import genai
         from google.genai import types
         client = genai.Client(api_key=cle, http_options=types.HttpOptions(timeout=20_000))
-        modeles = [_secret("GEMINI_MODEL")] if _secret("GEMINI_MODEL") else MODELES_GEMINI
+        modeles = [_secret("GEMINI_MODEL")] if _secret("GEMINI_MODEL") else modeles_disponibles(client)
         texte, erreurs = None, []
         import time
         for m in modeles:
@@ -597,7 +615,8 @@ def email_client(ctx: dict) -> tuple[str, str, str]:
             if texte:
                 break
         if not texte:
-            raise RuntimeError(", ".join(erreurs) or "aucun modèle n'a répondu")
+            raise RuntimeError(", ".join(erreurs) + (" — modèles saturés côté Google, réessayez dans une minute" if erreurs and all(e.endswith(("503", "429")) for e in erreurs) else "")
+                               if erreurs else "aucun modèle n'a répondu")
     except Exception as e:
         derniere_source = f"modèle (IA indisponible : {type(e).__name__} — {str(e)[:240]})"
         return objet, base, derniere_source
