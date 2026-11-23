@@ -95,7 +95,7 @@ adjusts it with written reasons, and hands over the suitability statement for si
     with o[3]:
         st.markdown(tr("""
 - Hypothèses de marché à 10 ans d'une seule source (Amundi) ; corrélations simplifiées entre 10 classes d'actifs.
-- Chocs de stress en ordres de grandeur ; fiscalité simplifiée (retrait unique à l'horizon) ; frais d'entrée de la SCPI forfaitaires (10 % sur 10 ans).
+- Chocs de stress en ordres de grandeur ; fiscalité simplifiée (retrait unique à l'horizon) ; frais d'entrée de la SCPI (12 % TTC, note d'information Sofidy) amortis sur 10 ans.
 - Le satellite actions sélectionne par la volatilité passée : critère simple et vérifiable, pas une analyse financière des sociétés.
 - Préférence durable traduite par des versions ISR et des exclusions, pas par une notation ESG ; intensité carbone estimée par secteur.
 - Dossiers stockés sur le disque du serveur de démonstration (effacés au redémarrage) ; en production, une base de données chiffrée.

@@ -250,7 +250,7 @@ def frais_fonds(pf: dict) -> tuple[float, list[str]]:
     return total, inconnus
 
 
-FRAIS_ENTREE_SCPI = 0.10                 # frais de souscription typiques d'une SCPI (ordre de grandeur, à lire dans le DIC)
+FRAIS_ENTREE_SCPI = 0.12                 # commission de souscription Immorente : 10 % HT = 12 % TTC (note d'information Sofidy, 08/2026)
 DUREE_AMORTISSEMENT_SCPI = 10            # amortis sur 10 ans dans le calcul des frais annuels
 
 

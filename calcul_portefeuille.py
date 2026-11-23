@@ -159,8 +159,18 @@ def classer_etf(sous_classe: str, durable: bool, enveloppe: str, langue: str = "
                 raisons.append(T(L, "éligible au PEA", "PEA-eligible"))
             if durable and c["version"] == "durable":
                 raisons.append(T(L, "version ISR", "SRI version"))
-            raisons.append(T(L, "frais les plus bas à critères égaux" if len(res) > 1 else "seul candidat de sa poche",
-                             "lowest fees, other criteria equal" if len(res) > 1 else "only candidate"))
+            rivaux = [r for r in res if r["cle"][:2] == c["cle"][:2]]
+            if len(rivaux) > 1:
+                raisons.append(T(L, "frais les plus bas à critères égaux", "lowest fees, other criteria equal"))
+            elif len(res) > 1:
+                raisons.append(T(L, "seul candidat restant après ces filtres", "only candidate left after these filters"))
+            else:
+                raisons.append(T(L, "seul candidat de sa poche", "only candidate"))
+            noms = {"encours": T(L, "encours > 500 M€", "AuM > €500m"), "physique": T(L, "réplication physique", "physical replication"),
+                    "historique": T(L, "5 ans d'historique", "5-year track record")}
+            manquants = [noms[k] for k, v in c["criteres"].items() if v is not True]
+            if manquants:
+                raisons.append(T(L, "critère(s) non rempli(s) : ", "criteria not met: ") + ", ".join(manquants))
             c["motif"] = ", ".join(raisons)
         else:
             premier = res[0]
