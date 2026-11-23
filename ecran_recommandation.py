@@ -181,36 +181,70 @@ def _lignes(d: dict, reco: dict):
                                       "SRI with *: estimated from class volatility (check the KID)."))
 
 
-def _reequilibrage(d: dict, reco: dict):
-    """Rééquilibrage : poids actuels (dérive depuis la signature) contre la cible ; ordres en euros par classe."""
-    hist = d.get("historique") or []
-    ancien = d.get("recommandation") if d.get("statut") == "signé" else (hist[-1] if hist else None)
-    if not ancien or not ancien.get("portefeuille"):
-        return
-    depuis = ancien.get("date_signature") or ancien["date"]
-    actuel = calcul_marches.poids_derives(ancien["portefeuille"], depuis)
-    perf = calcul_marches.performance_depuis(ancien["portefeuille"], depuis)
-    act = cpf.poids_par_classe(actuel)
-    cible = reco["classes"] if d.get("statut") != "signé" else cpf.poids_par_classe(ancien["portefeuille"])
-    valeur = d["reponses"]["montant"] * (1 + (perf or 0))
+def _table_derive(pf_initial: dict, depuis: str, cible: dict, montant: float, libelle_initial: str):
+    """Poids actuels après dérive depuis `depuis`, comparés à la cible ; ordres en euros pour revenir à la cible."""
+    actuel = calcul_marches.poids_derives(pf_initial, depuis)
+    perf = calcul_marches.performance_depuis(pf_initial, depuis)
+    act, ini = cpf.poids_par_classe(actuel), cpf.poids_par_classe(pf_initial)
+    valeur = montant * (1 + (perf or 0))
     alerte = [c for c in cpf.CLASSES if abs(act[c] - cible[c]) > 0.05]
-    titre = (tr("Revue : de l'ancienne allocation à la nouvelle", "Review: from the old allocation to the new one")
-             if d.get("statut") != "signé" else tr("Suivi : dérive depuis la signature", "Monitoring: drift since signature"))
-    with st.container(border=True):
-        st.markdown(f"<div class='ra-surtitre'>{titre}</div>", unsafe_allow_html=True)
-        st.markdown(tr(f"Investi le {commun.dt(depuis)} · performance depuis : <b>{pct(perf, 1, signe=True)}</b> · valeur estimée {eur(valeur)}"
-                       + (" · <b style='color:#B3261E'>rééquilibrage conseillé</b> (classe à plus de 5 points de sa cible)" if alerte else
-                          " · écarts inférieurs à 5 points : pas de rééquilibrage nécessaire"),
-                       f"Invested on {commun.dt(depuis)} · return since: <b>{pct(perf, 1, signe=True)}</b> · estimated value {eur(valeur)}"
-                       + (" · <b>rebalancing advised</b>" if alerte else " · drifts below 5 points")), unsafe_allow_html=True)
-        lignes = [{tr("Classe", "Class"): commun.nom_classe(c), tr("Cible signée" if d.get("statut") == "signé" else "Ancienne cible", "Old target"):
-                   pct(cpf.poids_par_classe(ancien["portefeuille"])[c], 1), tr("Aujourd'hui", "Today"): pct(act[c], 1),
-                   tr("Nouvelle cible" if d.get("statut") != "signé" else "Cible", "Target"): pct(cible[c], 1),
-                   tr("Ordre pour revenir à la cible", "Order back to target"): ("—" if abs(cible[c] - act[c]) < 0.001 else
-                                          (tr("Acheter ", "Buy ") if cible[c] > act[c] else tr("Vendre ", "Sell ")) + eur(abs(cible[c] - act[c]) * valeur))}
-                  for c in cpf.CLASSES if max(act[c], cible[c]) > 1e-6]
-        st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
-        st.caption(tr("Cours : ", "Prices: ") + calcul_marches.nom_mode(commun.L()) + tr(". Les ordres ramènent chaque classe à sa cible.", ". Orders bring each class back to target."))
+    ecart = max(abs(act[c] - cible[c]) for c in cpf.CLASSES)
+    st.markdown(tr(f"Investi le {commun.dt(depuis)} · performance depuis : <b>{pct(perf, 1, signe=True)}</b> · valeur estimée {eur(valeur)} · "
+                   f"écart maximal {pct(ecart, 1)}"
+                   + (" · <b style='color:#B3261E'>rééquilibrage conseillé</b> (classe à plus de 5 points de sa cible)" if alerte else
+                      " · sous le seuil de 5 points : pas de rééquilibrage nécessaire"),
+                   f"Invested on {commun.dt(depuis)} · return since: <b>{pct(perf, 1, signe=True)}</b> · estimated value {eur(valeur)} · "
+                   f"max drift {pct(ecart, 1)}" + (" · <b>rebalancing advised</b>" if alerte else " · below the 5-point threshold")),
+                unsafe_allow_html=True)
+    lignes = [{tr("Classe", "Class"): commun.nom_classe(c), libelle_initial: pct(ini[c], 1), tr("Aujourd'hui", "Today"): pct(act[c], 1),
+               tr("Cible", "Target"): pct(cible[c], 1), tr("Écart (pts)", "Drift (pts)"): commun.nb((act[c] - cible[c]) * 100, 1).replace("-", "−") if act[c] < cible[c]
+               else "+" + commun.nb((act[c] - cible[c]) * 100, 1),
+               tr("Ordre pour revenir à la cible", "Order back to target"): ("—" if abs(cible[c] - act[c]) < 0.001 else
+                   (tr("Acheter ", "Buy ") if cible[c] > act[c] else tr("Vendre ", "Sell ")) + eur(abs(cible[c] - act[c]) * valeur))}
+              for c in cpf.CLASSES if max(act[c], cible[c], ini[c]) > 1e-6]
+    st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
+    st.caption(tr("Cours : ", "Prices: ") + calcul_marches.nom_mode(commun.L())
+               + tr(". Les ordres ramènent chaque classe à sa cible ; le seuil d'alerte est de 5 points.", ". Orders bring each class back to target; alert threshold 5 points."))
+
+
+SCENARIOS_SUIVI = {"1a": ("Il y a 1 an", "1 year ago"), "3a": ("Il y a 3 ans", "3 years ago"), "5a": ("Il y a 5 ans", "5 years ago"),
+                   "covid": ("Juste avant le Covid", "Just before Covid"), "taux": ("Juste avant 2022", "Just before 2022")}
+
+
+def _date_suivi(cle: str) -> str:
+    aujourd = pd.Timestamp.today().normalize()
+    return {"1a": aujourd - pd.DateOffset(years=1), "3a": aujourd - pd.DateOffset(years=3), "5a": aujourd - pd.DateOffset(years=5),
+            "covid": pd.Timestamp("2020-02-19"), "taux": pd.Timestamp("2021-12-31")}[cle].date().isoformat()
+
+
+def _reequilibrage(d: dict, reco: dict):
+    """Suivi réel (dossier signé ou revue) et simulation du suivi « et si ce portefeuille avait été investi le… »."""
+    montant = d["reponses"]["montant"]
+    hist = d.get("historique") or []
+    signe = d.get("statut") == "signé" and d.get("recommandation")
+    ancien = d.get("recommandation") if signe else (hist[-1] if hist else None)
+    if ancien and ancien.get("portefeuille"):
+        with st.container(border=True):
+            if signe:
+                st.markdown(f"<div class='ra-surtitre'>{tr('Suivi : dérive depuis la signature', 'Monitoring: drift since signature')}</div>",
+                            unsafe_allow_html=True)
+                _table_derive(ancien["portefeuille"], ancien.get("date_signature") or ancien["date"],
+                              cpf.poids_par_classe(ancien["portefeuille"]), montant, tr("Cible signée", "Signed target"))
+            else:
+                st.markdown(f"<div class='ra-surtitre'>{tr('Revue : de l’allocation signée à la nouvelle', 'Review: from the signed allocation to the new one')}</div>",
+                            unsafe_allow_html=True)
+                _table_derive(ancien["portefeuille"], ancien.get("date_signature") or ancien["date"], reco["classes"], montant,
+                              tr("Allocation signée", "Signed allocation"))
+    pf = ancien["portefeuille"] if signe else reco["portefeuille"]
+    with st.expander(tr("Simuler le suivi : et si ce portefeuille avait été investi plus tôt ?",
+                        "Simulate monitoring: what if this portfolio had been invested earlier?")):
+        st.caption(tr("Rejoue la recommandation sur les cours passés pour montrer au client comment elle aurait vécu, de combien elle "
+                      "aurait dérivé de sa cible, et quels ordres auraient rééquilibré le portefeuille. Simulation : rien n'est enregistré.",
+                      "Replays the recommendation on past prices: drift from target and rebalancing orders. Simulation only."))
+        noms = {k: v[commun.L() == "en"] for k, v in SCENARIOS_SUIVI.items()}
+        choix = st.segmented_control("suivi", list(noms), format_func=noms.get, default="1a", key="w_sim_suivi",
+                                     label_visibility="collapsed") or "1a"
+        _table_derive(pf, _date_suivi(choix), cpf.poids_par_classe(pf), montant, tr("Cible", "Target") + " " + tr("initiale", "at start"))
 
 
 def page():
