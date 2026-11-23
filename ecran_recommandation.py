@@ -175,10 +175,12 @@ def _lignes(d: dict, reco: dict):
                                 tr("Physique", "Physical"): oui(x["criteres"]["physique"]), tr("≥ 5 ans", "≥ 5 yrs"): oui(x["criteres"]["historique"]),
                                 "PEA": "✓" if x["pea"] else "✗", tr("Motif", "Reason"): x["motif"]} for x in alt]),
                                 hide_index=True, width="stretch")
-                            st.caption(tr("« ? » : donnée non vérifiée (TODO dans l'univers), comptée comme critère non rempli.",
-                                          "'?': unverified data, counted as not met."))
-                        st.caption(tr("SRI suivi de * : estimé à partir de la volatilité de la classe (DIC à vérifier).",
-                                      "SRI with *: estimated from class volatility (check the KID)."))
+                            if any(v is None for x in alt for v in x["criteres"].values()):
+                                st.caption(tr("« ? » : donnée non vérifiée (TODO dans l'univers), comptée comme critère non rempli.",
+                                              "'?': unverified data, counted as not met."))
+                        if estime:
+                            st.caption(tr("SRI suivi de * : action détenue en direct, sans DIC ; SRI estimé à partir de sa classe d'actifs.",
+                                          "SRI with *: directly held stock, no KID; SRI estimated from its asset class."))
 
 
 def _table_derive(pf_initial: dict, depuis: str, cible: dict, montant: float, libelle_initial: str):

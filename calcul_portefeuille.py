@@ -177,9 +177,14 @@ def classer_etf(sous_classe: str, durable: bool, enveloppe: str, langue: str = "
             if c["cle"][1] > premier["cle"][1]:
                 c["motif"] = T(L, "non éligible au PEA", "not PEA-eligible")
             elif c["cle"][2] > premier["cle"][2]:
-                c["motif"] = T(L, "remplit moins de critères (encours, réplication, historique)", "meets fewer criteria")
-            else:
+                noms = {"encours": T(L, "encours > 500 M€", "AuM > €500m"), "physique": T(L, "réplication physique", "physical replication"),
+                        "historique": T(L, "5 ans d'historique", "5-year track record")}
+                c["motif"] = T(L, "critère(s) non rempli(s) : ", "criteria not met: ") + ", ".join(
+                    noms[k] for k, v in c["criteres"].items() if v is not True)
+            elif c["cle"][3] > premier["cle"][3]:
                 c["motif"] = T(L, "frais plus élevés", "higher fees")
+            else:
+                c["motif"] = T(L, "mêmes frais, encours plus faible (moins liquide)", "same fees, smaller fund (less liquid)")
     return res
 
 

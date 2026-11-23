@@ -237,16 +237,19 @@ def declaration_pdf(ctx: dict) -> bytes:
     u = donnees.univers()
     lignes = [[T(L, "Support", "Product"), T(L, "Poids", "Weight"), T(L, "Montant", "Amount"), T(L, "Frais", "Fees"), "SRI",
                T(L, "Enveloppe", "Wrapper")]]
+    une_estimee = False
     for isin, w in sorted(reco["portefeuille"].items(), key=lambda x: (cpf.CLASSES.index(u.loc[x[0], "classe"]), -x[1])):
         l = u.loc[isin]
         sri, est = donnees.sri(isin)
+        une_estimee = une_estimee or est
         sous = donnees.secteur_pays(isin, L) if l["type"] == "action" else isin
         lignes.append([Paragraph(f"{escape(_s(l['nom']))}<br/><font size=6.5 color='#6B7785'>{escape(_s(sous))}</font>", ST["cell"]),
                        P(w), E(w * r["montant"]), "-" if (l["ter_num"] != l["ter_num"] or l["type"] == "action") else P(l["ter_num"], 2), f"{sri}{'*' if est else ''}",
                        NOMS_COURTS[L][ctx["enveloppes"][isin]]])
-    h += [Spacer(1, 3), _tab(lignes, [80 * mm, 14 * mm, 24 * mm, 14 * mm, 11 * mm, LARG - 143 * mm]),
-          _p(T(L, "* SRI estimé à partir de la volatilité de la classe d'actifs ; le SRI officiel figure dans le DIC de chaque support.",
-               "* SRI estimated from asset-class volatility; the official SRI is in each KID."), "petit")]
+    h += [Spacer(1, 3), _tab(lignes, [80 * mm, 14 * mm, 24 * mm, 14 * mm, 11 * mm, LARG - 143 * mm])]
+    if une_estimee:
+        h.append(_p(T(L, "* Action détenue en direct (pas de DIC) : SRI estimé à partir de la volatilité de sa classe d'actifs. Les autres SRI sont ceux des DIC.",
+                      "* Directly held stock (no KID): SRI estimated from its asset-class volatility. Other SRIs come from the KIDs."), "petit"))
 
     # 4. Risques, frais, projection
     h.append(_p(T(L, "4. Risques, frais et perspectives", "4. Risks, fees and outlook"), "h2"))
