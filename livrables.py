@@ -464,7 +464,7 @@ def excel(ctx: dict) -> tuple[bytes, str]:
 # E-mail au client rédigé par IA (Gemini), avec garde-fou : aucun chiffre absent des données fournies
 # ====================================================================================================
 # Essayés dans l'ordre ; les noms changent souvent : GEMINI_MODEL (secrets) force un modèle précis vu dans Google AI Studio.
-MODELES_GEMINI = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+MODELES_GEMINI = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
 derniere_source = "aucune"
 
 
@@ -571,19 +571,30 @@ def email_client(ctx: dict) -> tuple[str, str, str]:
         client = genai.Client(api_key=cle, http_options=types.HttpOptions(timeout=20_000))
         modeles = [_secret("GEMINI_MODEL")] if _secret("GEMINI_MODEL") else MODELES_GEMINI
         texte, erreurs = None, []
+        import time
         for m in modeles:
-            try:
-                # limite large : les modèles récents « réfléchissent » avant d'écrire et consomment des jetons
-                rep = client.models.generate_content(model=m, contents=prompt,
-                                                     config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=4096))
-                if rep.text and rep.text.strip():
-                    texte, utilise = rep.text.strip(), m
+            for essai in range(3):                      # 503 (modèle surchargé) ou 429 (quota) : on réessaie après une pause
+                try:
+                    # limite large : les modèles récents « réfléchissent » avant d'écrire et consomment des jetons
+                    rep = client.models.generate_content(model=m, contents=prompt,
+                                                         config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=4096))
+                    if rep.text and rep.text.strip():
+                        texte, utilise = rep.text.strip(), m
+                    else:
+                        erreurs.append(f"{m} : réponse vide")
                     break
-                erreurs.append(f"{m} : réponse vide")
-            except Exception as e:
-                erreurs.append(f"{m} : {str(e)[:110]}")
+                except Exception as e:
+                    code = re.search(r"\b(4\d\d|5\d\d)\b", str(e))
+                    code = code.group(1) if code else type(e).__name__
+                    if code in ("503", "429", "500") and essai < 2:
+                        time.sleep(2 * (essai + 1))
+                        continue
+                    erreurs.append(f"{m} : {code}")
+                    break
+            if texte:
+                break
         if not texte:
-            raise RuntimeError(" | ".join(erreurs[:2]) or "aucun modèle n'a répondu")
+            raise RuntimeError(", ".join(erreurs) or "aucun modèle n'a répondu")
     except Exception as e:
         derniere_source = f"modèle (IA indisponible : {type(e).__name__} — {str(e)[:240]})"
         return objet, base, derniere_source
