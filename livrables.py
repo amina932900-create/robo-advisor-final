@@ -463,7 +463,8 @@ def excel(ctx: dict) -> tuple[bytes, str]:
 # ====================================================================================================
 # E-mail au client rédigé par IA (Gemini), avec garde-fou : aucun chiffre absent des données fournies
 # ====================================================================================================
-MODELES_GEMINI = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+# Essayés dans l'ordre ; les noms changent souvent : GEMINI_MODEL (secrets) force un modèle précis vu dans Google AI Studio.
+MODELES_GEMINI = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
 derniere_source = "aucune"
 
 
@@ -569,20 +570,22 @@ def email_client(ctx: dict) -> tuple[str, str, str]:
         from google.genai import types
         client = genai.Client(api_key=cle, http_options=types.HttpOptions(timeout=20_000))
         modeles = [_secret("GEMINI_MODEL")] if _secret("GEMINI_MODEL") else MODELES_GEMINI
-        texte = None
+        texte, erreurs = None, []
         for m in modeles:
             try:
+                # limite large : les modèles récents « réfléchissent » avant d'écrire et consomment des jetons
                 rep = client.models.generate_content(model=m, contents=prompt,
-                                                     config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=600))
+                                                     config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=4096))
                 if rep.text and rep.text.strip():
                     texte, utilise = rep.text.strip(), m
                     break
-            except Exception:
-                continue
+                erreurs.append(f"{m} : réponse vide")
+            except Exception as e:
+                erreurs.append(f"{m} : {str(e)[:110]}")
         if not texte:
-            raise RuntimeError("aucun modèle n'a répondu")
+            raise RuntimeError(" | ".join(erreurs[:2]) or "aucun modèle n'a répondu")
     except Exception as e:
-        derniere_source = f"modèle (IA indisponible : {type(e).__name__})"
+        derniere_source = f"modèle (IA indisponible : {type(e).__name__} — {str(e)[:240]})"
         return objet, base, derniere_source
     inventes = chiffres_inventes(texte, ctx)
     if inventes:

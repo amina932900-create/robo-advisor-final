@@ -44,6 +44,10 @@ def _maj_date():
     commun.sauver()
 
 
+def _aller_bloc(b: str):
+    st.session_state["q_bloc_actif"] = b
+
+
 def demarrer_revue():
     """Nouvelle version du questionnaire : la recommandation signée passe dans l'historique."""
     d = _d()
@@ -169,15 +173,31 @@ def page():
                 st.warning(tr(f"Le service est conçu pour 100 000 € à 1 000 000 € ({eur(m)} saisi) : au-delà, orienter vers la banque privée.",
                               f"Designed for €100,000 to €1,000,000 ({eur(m)} entered)."))
         r = d["reponses"]
-        onglets = []
-        for b in qn.BLOCS:
-            qs = [q for q in qn.QUESTIONS if q["bloc"] == b and qn.visible(q, r)]
-            manq = len([q for q in qs if q in qn.manquantes(r)])
-            onglets.append(f"{b}. {qn.BLOCS[b][L]}" + (" ✓" if manq == 0 else f" · {manq}"))
-        for (b, _), onglet in zip(qn.BLOCS.items(), st.tabs(onglets)):
-            with onglet:
-                for q in qn.QUESTIONS:
-                    if q["bloc"] == b and qn.visible(q, r):
-                        _widget(q, fige)
+        blocs = list(qn.BLOCS)
+        manquantes = qn.manquantes(r)
+        reste = {b: len([q for q in manquantes if q["bloc"] == b]) for b in blocs}
+        # Sélecteur de bloc à libellés FIXES (des libellés qui changent feraient revenir au bloc A à chaque réponse)
+        noms_blocs = {b: f"{b}. {qn.BLOCS[b][L]}" for b in blocs}
+        st.session_state.setdefault("q_bloc_actif", "A")
+        bloc = st.segmented_control("bloc", blocs, key="q_bloc_actif", format_func=noms_blocs.get,
+                                    label_visibility="collapsed") or st.session_state.get("_dernier_bloc", "A")
+        st.session_state["_dernier_bloc"] = bloc
+        st.markdown("<div style='display:flex;gap:14px;flex-wrap:wrap;margin:-4px 0 6px' class='ra-note'>" + "".join(
+            f"<span style='color:{'#1E7F4F' if reste[b] == 0 else '#8A5A00'}'>{b} {'✓ complet' if reste[b] == 0 else f'· {reste[b]} à saisir'}</span>"
+            if L == "fr" else
+            f"<span style='color:{'#1E7F4F' if reste[b] == 0 else '#8A5A00'}'>{b} {'✓ done' if reste[b] == 0 else f'· {reste[b]} to fill'}</span>"
+            for b in blocs) + "</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown(f"#### {noms_blocs[bloc]}")
+            for q in qn.QUESTIONS:
+                if q["bloc"] == bloc and qn.visible(q, r):
+                    _widget(q, fige)
+            i = blocs.index(bloc)
+            c1, _, c2 = st.columns([1, 2, 1])
+            if i > 0:
+                c1.button("← " + noms_blocs[blocs[i - 1]], key="btn_bloc_prec", on_click=_aller_bloc, args=(blocs[i - 1],), width="stretch")
+            if i < len(blocs) - 1:
+                c2.button(noms_blocs[blocs[i + 1]] + " →", key="btn_bloc_suiv", type="primary", on_click=_aller_bloc,
+                          args=(blocs[i + 1],), width="stretch")
     with dr:
         _panneau(d)
