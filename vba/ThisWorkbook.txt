@@ -1,0 +1,4 @@
+' À coller dans le module « ThisWorkbook » du modèle (VBE : double-clic sur ThisWorkbook)
+Private Sub Workbook_Open()
+    MiseEnForme.MiseEnForme
+End Sub

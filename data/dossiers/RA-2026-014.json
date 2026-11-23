@@ -1,0 +1,55 @@
+{
+ "reference": "RA-2026-014",
+ "cree_le": "2026-11-23T10:00:00",
+ "statut": "brouillon",
+ "reponses": {
+  "situation_familiale": "couple",
+  "epargne_precaution": true,
+  "credits": true,
+  "statut_pro": "salarie_cdi",
+  "stabilite_revenus": "stables",
+  "besoin_liquidite": true,
+  "versement_mensuel": 0,
+  "cible": 0,
+  "quiz_etf": true,
+  "quiz_taux": false,
+  "quiz_diversification": true,
+  "quiz_perte": true,
+  "quiz_fonds_euros": true,
+  "durabilite": "aucune",
+  "zone": "Monde",
+  "enveloppe_souhaitee": "auto",
+  "produits_detenus": [
+   "assurance_vie",
+   "livrets"
+  ],
+  "montant": 180000,
+  "age": 52,
+  "revenus": "50-100k",
+  "patrimoine": 520000,
+  "taux_effort": "20-35",
+  "objectif": "immobilier",
+  "horizon": "2-5",
+  "priorite": "prudent",
+  "rendement_attendu": "4-5",
+  "anciennete": "<2",
+  "niveau": "debutant",
+  "reaction_baisse": "attendre",
+  "perte_max": "10",
+  "choix_portefeuille": "B"
+ },
+ "date_signature_questionnaire": "2026-11-23",
+ "decisions": {},
+ "recommandation": null,
+ "historique": [],
+ "journal": [
+  {
+   "date": "2026-11-23T10:00:00",
+   "auteur": "conseiller",
+   "evenement": "Questionnaire signé saisi"
+  }
+ ],
+ "demo": true,
+ "note": "Projet d'achat immobilier dans 3 ans.",
+ "maj": "2026-11-23T21:01:04"
+}

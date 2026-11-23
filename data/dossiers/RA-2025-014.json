@@ -1,0 +1,87 @@
+{
+ "reference": "RA-2025-014",
+ "cree_le": "2025-11-12T10:00:00",
+ "statut": "signé",
+ "reponses": {
+  "situation_familiale": "couple",
+  "epargne_precaution": true,
+  "credits": false,
+  "statut_pro": "retraite",
+  "stabilite_revenus": "stables",
+  "besoin_liquidite": false,
+  "versement_mensuel": 0,
+  "cible": 0,
+  "quiz_etf": true,
+  "quiz_taux": true,
+  "quiz_diversification": true,
+  "quiz_perte": true,
+  "quiz_fonds_euros": true,
+  "durabilite": "aucune",
+  "zone": "Monde",
+  "enveloppe_souhaitee": "auto",
+  "produits_detenus": [
+   "assurance_vie",
+   "livrets"
+  ],
+  "montant": 400000,
+  "age": 71,
+  "revenus": "50-100k",
+  "patrimoine": 1400000,
+  "objectif": "transmission",
+  "horizon": ">8",
+  "priorite": "prudent",
+  "rendement_attendu": "2-3",
+  "anciennete": ">5",
+  "niveau": "intermediaire",
+  "reaction_baisse": "vendre_partie",
+  "perte_max": "5",
+  "choix_portefeuille": "A"
+ },
+ "date_signature_questionnaire": "2025-11-12",
+ "decisions": {},
+ "recommandation": {
+  "date": "2025-11-12",
+  "portefeuille": {
+   "IE00B4L5Y983": 0.25,
+   "IE00B14X4Q57": 0.12249999999999998,
+   "IE00B4WXJJ64": 0.12249999999999998,
+   "IE00B3F81R35": 0.105,
+   "FONDS-EUROS": 0.25,
+   "IE00B4ND3602": 0.03,
+   "IE00B0M63284": 0.020000000000000004,
+   "SCPI-IMMORENTE": 0.05,
+   "FR0010135103": 0.05
+  },
+  "profil": 2,
+  "profil_calcule": 2,
+  "enveloppe": "assurance-vie",
+  "classes": {
+   "actions": 0.25,
+   "obligations": 0.35,
+   "monetaire": 0.25,
+   "diversifiants": 0.05,
+   "scpi": 0.05,
+   "actif": 0.05
+  },
+  "vol": 0.05213912936197725,
+  "sri": 3,
+  "synthese": "ok",
+  "date_signature": "2025-11-12"
+ },
+ "historique": [],
+ "journal": [
+  {
+   "date": "2025-11-12T10:00:00",
+   "auteur": "conseiller",
+   "evenement": "Questionnaire signé saisi"
+  },
+  {
+   "date": "2025-11-12T11:00:00",
+   "auteur": "client",
+   "evenement": "Déclaration d'adéquation signée"
+  }
+ ],
+ "demo": true,
+ "note": "Retraitée, prépare la transmission à ses enfants.",
+ "maj": "2026-11-23T21:01:04"
+}
