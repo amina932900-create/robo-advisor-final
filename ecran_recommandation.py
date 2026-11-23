@@ -168,7 +168,7 @@ def _lignes(d: dict, reco: dict):
                         alt = info.get("alternatives") or []
                         if len(alt) > 1:
                             st.markdown(f"**{tr('Candidats de la poche', 'Candidates in the sleeve')}** · {info['texte_poche']}")
-                            oui = lambda v: "–" if v == "n/a" else ("✓" if v is True else ("✗" if v is False else "?"))
+                            oui = lambda v: "✓" if v else ("✗" if v is False else "?")
                             st.dataframe(pd.DataFrame([{
                                 tr("Support", "Product"): ("▶ " if x["isin"] == isin else "") + x["nom"][:42],
                                 tr("Frais", "Fees"): pct(x["ter"], 2), tr("Encours ≥ 500 M€", "AuM ≥ €500m"): oui(x["criteres"]["encours"]),

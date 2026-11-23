@@ -37,10 +37,8 @@ Le conseiller peut l'abaisser avec un motif écrit, jamais le relever.
 **Allocation.** Grille ci-dessous ; le conseiller peut déplacer actions et obligations de ±10 points (motif obligatoire), le monétaire
 compense ; tout réglage qui fait dépasser la volatilité maximale du profil est refusé.
 
-**Choix des supports.** Classement dans cet ordre : (1) version ISR obligatoire si le client a une préférence durable ; (2) éligibilité au PEA
-si l'enveloppe est un PEA ; (3) sans préférence durable, la version standard (indice complet) passe devant l'ISR, qui reste possible ;
-(4) critères remplis : encours > 500 M€, réplication physique, 5 ans d'historique ; (5) frais les plus bas ; (6) à frais égaux, le plus gros encours.
-Chaque support affiche le premier critère qui le départage. Une donnée non vérifiée compte comme critère non rempli. Aucun tirage au sort.
+**Choix des supports.** Filtres (enveloppe, version ISR si préférence durable, exclusions) puis classement par critères : encours > 500 M€,
+réplication physique, 5 ans d'historique, frais les plus bas. Une donnée non vérifiée compte comme critère non rempli. Aucun tirage au sort.
 
 **Satellite.** SCPI : assurance-vie et horizon > 8 ans. Fonds actif : 5 % (patrimonial pour les profils 2-3, actions pour 4-5).
 Actions en direct (profils 4-5, PEA ou compte-titres, connaissances ≥ 4) : un titre européen par secteur, le moins volatil de son secteur sur 3 ans.
@@ -53,7 +51,7 @@ adjusts it with written reasons, and hands over the suitability statement for si
 
 **Profile.** Four scores out of 5; the profile is the lowest. It may be lowered with a written reason, never raised.
 
-**Selection.** Ranking order: (1) SRI version required if the client has a sustainability preference; (2) PEA eligibility in a PEA; (3) without a preference, the standard version (full index) comes before the SRI one, which stays possible; (4) criteria met: AuM > €500m, physical replication, 5-year track record; (5) lowest fees; (6) at equal fees, the largest fund. Each product shows the first criterion that separates it. No randomness.
+**Selection.** Filters, then ranking: AuM > €500m, physical replication, 5-year history, lowest fees. No randomness.
 """))
         grille = pd.DataFrame([{tr("Profil", "Profile"): f"{p} · {qn.nom_profil(p, commun.L())}",
                                 **{commun.nom_classe(c): pct(w, 0) for c, w in v["allocation"].items()},
