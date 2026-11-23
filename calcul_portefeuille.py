@@ -119,9 +119,15 @@ def repartition_enveloppes(pf: dict, enveloppe: str, montant: float | None = Non
 # ====================================================================================================
 # 3. Sélection des ETF : filtres puis classement par critères (aucun tirage)
 # ====================================================================================================
+HORS_ETF = ("fonds_euros", "scpi", "patrimonial", "actions_actif")   # supports sans indice répliqué : critères ETF sans objet
+
+
 def criteres(isin: str) -> dict:
-    """Critères du cahier des charges : encours > 500 M€, réplication physique, au moins 5 ans d'historique."""
+    """Critères du cahier des charges : encours > 500 M€, réplication physique, au moins 5 ans d'historique.
+    True / False = vérifié ; None = donnée manquante ; "n/a" = critère sans objet (support qui n'est pas un ETF)."""
     l = donnees.ligne(isin)
+    if l["sous_classe"] in HORS_ETF:
+        return {"encours": "n/a", "physique": "n/a", "historique": "n/a"}
     enc, anc = l["encours_num"], l["anciennete_ans"]
     return {"encours": None if enc != enc else bool(enc >= 500),
             "physique": None if l["replication"] in ("", "TODO") else str(l["replication"]).startswith("Physique"),
@@ -129,62 +135,67 @@ def criteres(isin: str) -> dict:
 
 
 def classer_etf(sous_classe: str, durable: bool, enveloppe: str, langue: str = "fr") -> list[dict]:
-    """Candidats d'une poche, classés. Chaque candidat porte ses critères et la raison de son rang."""
+    """
+    Candidats d'une poche, classés. Clé de tri, dans l'ordre :
+      0. version ISR exigée si le client a une préférence durable (MiFID II) : les versions standard passent derrière ;
+      1. éligibilité au PEA si l'enveloppe est un PEA (poches actions) ;
+      2. client sans préférence durable : la version standard (indice complet) passe devant l'ISR, qui reste possible ;
+      3. nombre de critères non remplis (encours > 500 M€, réplication physique, 5 ans d'historique) ;
+      4. frais (TER) ; 5. encours (le plus gros = le plus liquide).
+    Chaque candidat porte la raison exacte de son rang (le premier niveau où il diffère du premier).
+    """
     L = langue
     u = donnees.univers()
     df = u[(u["sous_classe"] == sous_classe) & (u["type"] == "fonds")]
-    voulue = "durable" if durable else "standard"
-    a_la_version = (df["version"] == voulue).any()
+    a_isr = (df["version"] == "durable").any()
     res = []
     for isin, l in df.iterrows():
-        ok_version = l["version"] in (voulue, "commun") or not a_la_version
+        standard = l["version"] == "standard"          # « commun » = support sans déclinaison ISR (fonds euros, or…) : neutre
+        ok_version = (not durable) or (not a_isr) or not standard   # préférence durable : version ISR obligatoire si elle existe
         pea = l["pea"] == "oui"
         crit = criteres(isin)
-        manque = sum(1 for v in crit.values() if v is not True)
+        manque = sum(1 for v in crit.values() if v is not True and v != "n/a")
         rang_pea = 0 if (enveloppe != "PEA" or l["classe"] != "actions" or pea) else 1
+        pref = 1 if (not durable and l["version"] == "durable") else 0
         ter = l["ter_num"] if l["ter_num"] == l["ter_num"] else 9.0
         enc = l["encours_num"] if l["encours_num"] == l["encours_num"] else 0.0
         res.append({"isin": isin, "nom": l["nom"], "ter": None if ter == 9.0 else ter, "encours": enc or None,
                     "replication": l["replication"], "anciennete": l["anciennete_ans"], "pea": pea, "version": l["version"],
                     "criteres": crit, "ok_version": ok_version,
-                    "cle": (0 if ok_version else 1, rang_pea, manque, ter, -enc)})
+                    "cle": (0 if ok_version else 1, rang_pea, pref, manque, ter, -enc)})
     res.sort(key=lambda c: c["cle"])
+    noms = {"encours": T(L, "encours > 500 M€", "AuM > €500m"), "physique": T(L, "réplication physique", "physical replication"),
+            "historique": T(L, "5 ans d'historique", "5-year track record")}
+    manquants = lambda c: [noms[k] for k, v in c["criteres"].items() if v is not True and v != "n/a"]
+    niveau = lambda a, b: next((i for i in range(6) if a["cle"][i] != b["cle"][i]), 5)
+    gagne = [T(L, "version ISR, conforme à la préférence durable du client", "SRI version, as the client's sustainability preference requires"),
+             T(L, "éligible au PEA", "PEA-eligible"),
+             T(L, "version standard : suit l'indice complet (client sans préférence durable)", "standard version: tracks the full index (no sustainability preference)"),
+             T(L, "remplit plus de critères", "meets more criteria"),
+             T(L, "frais les plus bas", "lowest fees"),
+             T(L, "frais identiques, encours le plus élevé (plus liquide)", "same fees, largest fund (most liquid)")]
+    premier = res[0] if res else None
     for k, c in enumerate(res):
-        if not c["ok_version"]:
-            c["motif"] = T(L, "version ISR non demandée" if not durable else "version standard (une version ISR existe)",
-                           "SRI version not requested" if not durable else "standard version (an SRI one exists)")
-        elif k == 0:
-            raisons = []
-            if enveloppe == "PEA" and c["pea"] and sous_classe in ("monde", "usa", "europe", "france", "emergents"):
-                raisons.append(T(L, "éligible au PEA", "PEA-eligible"))
-            if durable and c["version"] == "durable":
-                raisons.append(T(L, "version ISR", "SRI version"))
-            rivaux = [r for r in res if r["cle"][:2] == c["cle"][:2]]
-            if len(rivaux) > 1:
-                raisons.append(T(L, "frais les plus bas à critères égaux", "lowest fees, other criteria equal"))
-            elif len(res) > 1:
-                raisons.append(T(L, "seul candidat restant après ces filtres", "only candidate left after these filters"))
+        if k == 0:
+            if len(res) == 1:
+                raisons = [T(L, "seul candidat de sa poche", "only candidate")]
             else:
-                raisons.append(T(L, "seul candidat de sa poche", "only candidate"))
-            noms = {"encours": T(L, "encours > 500 M€", "AuM > €500m"), "physique": T(L, "réplication physique", "physical replication"),
-                    "historique": T(L, "5 ans d'historique", "5-year track record")}
-            manquants = [noms[k] for k, v in c["criteres"].items() if v is not True]
-            if manquants:
-                raisons.append(T(L, "critère(s) non rempli(s) : ", "criteria not met: ") + ", ".join(manquants))
+                lv = sorted({niveau(c, o) for o in res[1:]})
+                raisons = [gagne[i] for i in lv]
+            m = manquants(c)
+            if m:
+                raisons.append(T(L, "critère(s) non rempli(s) : ", "criteria not met: ") + ", ".join(m))
             c["motif"] = ", ".join(raisons)
-        else:
-            premier = res[0]
-            if c["cle"][1] > premier["cle"][1]:
-                c["motif"] = T(L, "non éligible au PEA", "not PEA-eligible")
-            elif c["cle"][2] > premier["cle"][2]:
-                noms = {"encours": T(L, "encours > 500 M€", "AuM > €500m"), "physique": T(L, "réplication physique", "physical replication"),
-                        "historique": T(L, "5 ans d'historique", "5-year track record")}
-                c["motif"] = T(L, "critère(s) non rempli(s) : ", "criteria not met: ") + ", ".join(
-                    noms[k] for k, v in c["criteres"].items() if v is not True)
-            elif c["cle"][3] > premier["cle"][3]:
-                c["motif"] = T(L, "frais plus élevés", "higher fees")
-            else:
-                c["motif"] = T(L, "mêmes frais, encours plus faible (moins liquide)", "same fees, smaller fund (less liquid)")
+            continue
+        i = niveau(c, premier)
+        c["motif"] = [
+            T(L, "version standard : le client demande une version ISR", "standard version: the client requires an SRI version"),
+            T(L, "non éligible au PEA", "not PEA-eligible"),
+            T(L, "version ISR : le client n'a pas de préférence durable, la version standard (indice complet) est préférée",
+              "SRI version: no sustainability preference, the standard version (full index) is preferred"),
+            T(L, "critère(s) non rempli(s) : ", "criteria not met: ") + ", ".join(manquants(c)),
+            T(L, "frais plus élevés", "higher fees"),
+            T(L, "mêmes frais, encours plus faible (moins liquide)", "same fees, smaller fund (less liquid)")][i]
     return res
 
 
